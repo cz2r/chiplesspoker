@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+  <meta name="theme-color" content="#0f1419" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>Chipless Poker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div id="app">
+
+    <!-- ========== SETUP ========== -->
+    <section id="screen-setup" class="screen">
+      <h1>Chipless Poker</h1>
+      <p class="muted">Track chips for real-card Texas Hold'em. Pass the device between players.</p>
+
+      <div class="panel">
+        <h3>Players</h3>
+        <div id="setup-players"></div>
+        <button type="button" id="btn-add-player" class="btn btn-secondary full-width mt-8">+ Add Player</button>
+      </div>
+
+      <div class="panel">
+        <h3>Blinds & Ante</h3>
+        <div class="cfg-row">
+          <label>Small Blind
+            <input type="number" id="cfg-sb" value="5" min="1" />
+          </label>
+          <label>Big Blind
+            <input type="number" id="cfg-bb" value="10" min="1" />
+          </label>
+          <label>Ante (optional)
+            <input type="number" id="cfg-ante" value="0" min="0" />
+          </label>
+        </div>
+      </div>
+
+      <button type="button" id="btn-start-game" class="btn btn-primary full-width">Start Game</button>
+    </section>
+
+    <!-- ========== PASS DEVICE ========== -->
+    <section id="screen-pass" class="screen hidden">
+      <p class="muted" id="pass-sub">Hand #1 · PREFLOP</p>
+      <div>
+        <p class="pass-instruction">Pass the device to</p>
+        <div id="pass-player-name">Player</div>
+      </div>
+      <p class="pass-instruction">Only look at the screen when it is your turn.</p>
+      <button type="button" id="btn-pass-confirm" class="btn btn-primary full-width">
+        I am this player — Continue
+      </button>
+    </section>
+
+    <!-- ========== ACTION ========== -->
+    <section id="screen-action" class="screen hidden">
+      <div id="action-header">
+        <div>
+          <div id="action-player-name">Player</div>
+          <div class="muted"><span id="action-stage">PREFLOP</span> · <span id="action-hand-num">Hand #1</span></div>
+        </div>
+        <button type="button" id="btn-history-action" class="btn btn-secondary" style="min-height:40px;padding:0 12px;font-size:0.85rem;">History</button>
+      </div>
+
+      <div id="stacks-strip"></div>
+
+      <div class="panel pot-row">
+        <div>
+          <span class="label">Pot</span>
+          <span class="value" id="pot-display">0</span>
+        </div>
+        <div>
+          <span class="label">Current Bet</span>
+          <span class="value" id="current-bet-display">0</span>
+        </div>
+      </div>
+
+      <div id="to-call-box">
+        To call: <span id="to-call-amount">0</span>
+      </div>
+
+      <div id="action-buttons" class="flex gap-8"></div>
+
+      <div id="amount-panel" class="panel">
+        <label class="muted" for="raise-input">Bet / Raise to (total)</label>
+        <input type="number" id="raise-input" min="1" />
+        <div id="quick-amounts" class="mt-8"></div>
+        <div id="raise-preview" class="mt-8">—</div>
+      </div>
+    </section>
+
+    <!-- ========== ROUND END ========== -->
+    <section id="screen-round-end" class="screen hidden">
+      <h2>Betting round complete</h2>
+      <p class="muted">Current street: <strong id="round-end-stage">PREFLOP</strong></p>
+      <div class="panel">
+        <div class="label">Total Pot</div>
+        <div class="value" id="round-end-pot" style="font-size:2rem;color:var(--accent);">0</div>
+      </div>
+      <p class="muted">Deal the next board cards with the physical deck, then continue.</p>
+      <button type="button" id="btn-advance-stage" class="btn btn-primary full-width">Deal Flop</button>
+      <button type="button" id="btn-history-round" class="btn btn-secondary full-width mt-8">View History</button>
+    </section>
+
+    <!-- ========== SHOWDOWN ========== -->
+    <section id="screen-showdown" class="screen hidden">
+      <h2>Showdown</h2>
+      <p class="muted">Select the winner(s) for each pot. Use the physical cards to determine the ranking. Check multiple names for a split pot.</p>
+      <div id="showdown-pots"></div>
+      <button type="button" id="btn-distribute" class="btn btn-primary full-width">Distribute Pots</button>
+    </section>
+
+    <!-- ========== SUMMARY ========== -->
+    <section id="screen-summary" class="screen hidden">
+      <div id="summary-content"></div>
+      <button type="button" id="btn-next-hand" class="btn btn-primary full-width">Next Hand</button>
+      <button type="button" id="btn-history-summary" class="btn btn-secondary full-width mt-8">View Full History</button>
+    </section>
+
+    <!-- ========== HISTORY ========== -->
+    <section id="screen-history" class="screen hidden">
+      <h2>Hand History</h2>
+      <div id="history-list" class="panel"></div>
+      <button type="button" id="btn-history-back" class="btn btn-secondary full-width">Back</button>
+    </section>
+
+  </div>
+
+  <div id="toast"></div>
+
+  <script src="js/models.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

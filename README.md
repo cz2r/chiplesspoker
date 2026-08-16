@@ -1,0 +1,113 @@
+# Chipless Poker
+
+A clean, modern, pass-the-device chip tracking app for live Texas Hold'em played with a real deck of cards (no physical chips required).
+
+## Purpose
+
+Players deal and look at physical cards. This application replaces the chip tray: it tracks every stack, every bet, main pot, side pots, and payouts automatically. Designed for one shared phone, tablet or laptop that is passed around the table.
+
+## Features
+
+- Configurable number of players, names, starting stacks, blinds and optional ante
+- Automatic dealer / SB / BB rotation
+- Full No-Limit Hold'em betting actions: Fold, Check, Call, Bet, Raise, All-in
+- Automatic calculation of amount to call, minimum raise, remaining stack after a raise
+- Correct side-pot creation when players go all-in for different amounts
+- Pass-the-device screens so players only see the UI on their turn
+- Manual street advancement (Preflop → Flop → Turn → River → Showdown) because the board is dealt with real cards
+- At showdown you select the winner(s) of each pot (supports splits)
+- Hand history
+- Strict chip-conservation invariant: the total number of chips in stacks + pots never changes
+
+## Quick Start
+
+1. Open `index.html` in any modern browser (Chrome, Safari, Firefox, Edge).
+2. Or serve the folder with a local static server if you prefer:
+   ```bash
+   cd chipless-poker
+   python3 -m http.server 8080
+   ```
+   Then visit `http://localhost:8080`.
+
+No build step, no package manager, no backend. Works offline once the page is loaded (fonts are the only external request).
+
+## Project Structure
+
+```
+chipless-poker/
+├── index.html          # Single-page app shell
+├── css/
+│   └── styles.css      # Dark, touch-friendly theme
+├── js/
+│   ├── models.js       # Player, SidePot, Game – all chip logic & state
+│   ├── ui.js           # Screen management, pass-device flow, rendering
+│   └── app.js          # Event wiring & startup
+├── tests/
+│   └── core-tests.js   # Unit tests for pots, calls, splits, invariant
+└── README.md
+```
+
+## Sample / Default Configuration
+
+- 4 players named Player 1–4
+- Starting stack: 1000 each
+- Small Blind: 5
+- Big Blind: 10
+- Ante: 0
+
+You can change everything on the setup screen before starting.
+
+## Architecture Overview
+
+### Chip Accounting (the critical part)
+
+Every chip movement goes through `Player.contribute(amount)` or `Player.receive(amount)`.  
+After every action the game runs:
+
+```js
+assert(sum(player.stacks) + sum(pot.amounts) === totalChips)
+```
+
+If the numbers ever diverge the app throws immediately so accounting errors are impossible to ignore.
+
+### Side Pots
+
+When players have put different amounts into the hand the engine:
+
+1. Collects every player’s `totalContributed` this hand
+2. Sorts the unique contribution levels
+3. Builds layered pots: each layer is `(level – previousLevel) × number of players who reached that level`
+4. Eligibility for a pot = players who contributed at least that level **and** have not folded
+
+At showdown the user simply ticks the winner(s) for each pot; the app divides the chips (integer division, remainder to the first selected winner).
+
+### Betting Round Control
+
+- Tracks `currentBet`, `lastRaiseSize`, and who has acted since the last aggression
+- A round ends when every player still in the hand has either matched the current bet or is all-in, **and** every non-all-in player has had a chance to act after the last raise
+- Short all-ins that do not meet the minimum raise size do not reopen betting
+
+### Pass-the-Device UX
+
+Between every turn a full-screen “Pass to [Name]” page appears. The next player taps “I am this player” before any action buttons are shown. This keeps the shared device honest.
+
+## Running the Tests
+
+1. Open the app in a browser.
+2. Open the developer console.
+3. Load the test file (or paste its contents) and call:
+   ```js
+   runChiplessTests()
+   ```
+   You should see six passing tests covering blinds, call amounts, side pots, fold eligibility and split payouts.
+
+## Limitations / Design Choices
+
+- No card dealing or hand evaluation – that stays physical by design.
+- Minimum raise rules follow standard NLHE; short all-ins are accepted but do not reopen the action.
+- Remainder chips on a split pot go to the first selected winner (simple and transparent).
+- The app assumes players will not collude on the shared device; the pass screen is the only privacy measure needed because hole cards are physical.
+
+## License
+
+Free to use and modify for personal or home-game use.
