@@ -103,6 +103,11 @@ class UI {
   beginHand() {
     try {
       const info = this.game.startNewHand();
+      if (info.goToShowdown || this.game.pendingShowdown || this.game.shouldGoToShowdown()) {
+        this.renderShowdown();
+        this.showScreen(SCREENS.SHOWDOWN);
+        return;
+      }
       this.showPassScreen(info.firstToAct);
     } catch (e) {
       console.error(e);
@@ -130,6 +135,15 @@ class UI {
     const state = this.game.getPublicState();
     const me = state.players[state.currentPlayerIndex];
     if (!me) return;
+
+    // Safety net: never show action UI for a player who cannot act
+    if (me.folded || me.allIn || this.game.shouldGoToShowdown()) {
+      this.game.stage = 'showdown';
+      this.game.pendingShowdown = true;
+      this.renderShowdown();
+      this.showScreen(SCREENS.SHOWDOWN);
+      return;
+    }
 
     // Header
     document.getElementById('action-player-name').textContent = me.name;
@@ -278,20 +292,20 @@ class UI {
     // Feedback
     this.showToast(result.message);
 
+    if (result.goToShowdown || this.game.pendingShowdown || this.game.shouldGoToShowdown()) {
+      // Everyone all-in, or only one player left in hand
+      this.game.stage = 'showdown';
+      this.game.pendingShowdown = true;
+      this.renderShowdown();
+      this.showScreen(SCREENS.SHOWDOWN);
+      return;
+    }
+
     if (result.roundOver) {
-      // Check if only one player left → auto showdown
-      const alive = this.game.activePlayers();
-      if (alive.length <= 1) {
-        this.game.stage = 'showdown';
-        this.game.pendingShowdown = true;
-        this.renderShowdown();
-        this.showScreen(SCREENS.SHOWDOWN);
-        return;
-      }
       this.renderRoundEnd();
       this.showScreen(SCREENS.ROUND_END);
     } else {
-      // Pass to next
+      // Pass to next player who can act
       this.showPassScreen(result.nextPlayer);
     }
   }
@@ -317,12 +331,22 @@ class UI {
     const ok = this.game.advanceStage();
     if (!ok) return;
 
-    if (this.game.stage === 'showdown') {
+    if (this.game.stage === 'showdown' || this.game.pendingShowdown || this.game.shouldGoToShowdown()) {
+      this.game.stage = 'showdown';
+      this.game.pendingShowdown = true;
       this.renderShowdown();
       this.showScreen(SCREENS.SHOWDOWN);
     } else {
-      // New betting round – pass to first actor
+      // New betting round – pass to first actor who can still act
       const first = this.game.players[this.game.currentPlayerIndex];
+      if (!first || first.folded || first.allIn) {
+        // Defensive: should not happen after advanceStage, but never show action UI for all-in
+        this.game.stage = 'showdown';
+        this.game.pendingShowdown = true;
+        this.renderShowdown();
+        this.showScreen(SCREENS.SHOWDOWN);
+        return;
+      }
       this.showPassScreen(first);
     }
   }

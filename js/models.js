@@ -104,12 +104,30 @@ class Game {
     return this.players.find(p => p.id === id);
   }
 
-  activePlayers() {
+  /** Players still contesting the pot (not folded). Includes all-in players. */
+  playersInHand() {
     return this.players.filter(p => p.isInHand());
   }
 
+  /** Alias kept for older call sites – same as playersInHand(). */
+  activePlayers() {
+    return this.playersInHand();
+  }
+
+  /** Players who can still make a decision (not folded, not all-in). */
   playersStillToAct() {
     return this.players.filter(p => p.isActive());
+  }
+
+  /**
+   * True when betting is finished for the hand:
+   * - 0 or 1 player left in hand, or
+   * - every remaining player is all-in (nobody can act).
+   */
+  shouldGoToShowdown() {
+    const inHand = this.playersInHand();
+    if (inHand.length <= 1) return true;
+    return this.playersStillToAct().length === 0;
   }
 
   /** Rotate dealer button and assign SB / BB. */
@@ -169,14 +187,21 @@ class Game {
     this.currentPlayerIndex = (bbIndex + 1) % n;
 
     // Skip players who are already all-in from blinds (rare but possible)
-    this._advanceToNextActivePlayer();
+    const foundActor = this._ensureCurrentPlayerCanAct();
+
+    // Extremely rare: every player is already all-in from blinds/antes → showdown
+    if (!foundActor || this.shouldGoToShowdown()) {
+      this.stage = 'showdown';
+      this.pendingShowdown = true;
+    }
 
     this.assertChipInvariant('after startNewHand');
     return {
       dealer: this.players[this.dealerIndex],
       sb: sbPlayer,
       bb: bbPlayer,
-      firstToAct: this.players[this.currentPlayerIndex]
+      firstToAct: this.players[this.currentPlayerIndex],
+      goToShowdown: this.pendingShowdown
     };
   }
 
@@ -348,10 +373,24 @@ class Game {
 
     // Move to next player or finish round
     const roundOver = this._isBettingRoundOver();
+    let nextPlayer = null;
     if (roundOver) {
       this._endBettingRound();
+      // If everyone left is all-in (or only one player remains), mark showdown
+      if (this.shouldGoToShowdown()) {
+        this.stage = 'showdown';
+        this.pendingShowdown = true;
+      }
     } else {
-      this._advanceToNextActivePlayer();
+      const found = this._advanceToNextActivePlayer();
+      if (!found) {
+        // Nobody left who can act → treat as end of betting + showdown
+        this._endBettingRound();
+        this.stage = 'showdown';
+        this.pendingShowdown = true;
+      } else {
+        nextPlayer = this.players[this.currentPlayerIndex];
+      }
     }
 
     this.assertChipInvariant('after action ' + action);
@@ -360,8 +399,9 @@ class Game {
       message,
       amountMoved,
       remaining: player.stack,
-      roundOver,
-      nextPlayer: this.players[this.currentPlayerIndex]
+      roundOver: roundOver || this.pendingShowdown,
+      goToShowdown: this.pendingShowdown,
+      nextPlayer: nextPlayer || this.players[this.currentPlayerIndex]
     };
   }
 
@@ -399,17 +439,44 @@ class Game {
     this.updatePots();
   }
 
+  /**
+   * Move currentPlayerIndex to the next player who can act (not folded, not all-in).
+   * Always steps at least once (used after someone has just acted).
+   * Returns true if a player who can act was found, false if nobody can act.
+   */
   _advanceToNextActivePlayer() {
     const n = this.players.length;
     let safety = 0;
     do {
       this.currentPlayerIndex = (this.currentPlayerIndex + 1) % n;
       safety++;
-      if (safety > n + 2) break; // should never happen
+      if (safety > n + 2) {
+        return false;
+      }
     } while (
       this.players[this.currentPlayerIndex].folded ||
       this.players[this.currentPlayerIndex].allIn
     );
+    return true;
+  }
+
+  /**
+   * Ensure currentPlayerIndex points at a player who can act, without
+   * advancing if the current one is already valid. Used when seating the
+   * first actor of a street.
+   */
+  _ensureCurrentPlayerCanAct() {
+    const n = this.players.length;
+    let safety = 0;
+    while (
+      this.players[this.currentPlayerIndex].folded ||
+      this.players[this.currentPlayerIndex].allIn
+    ) {
+      this.currentPlayerIndex = (this.currentPlayerIndex + 1) % n;
+      safety++;
+      if (safety > n + 2) return false;
+    }
+    return true;
   }
 
   /** User advances the board (Flop / Turn / River). */
@@ -425,14 +492,23 @@ class Game {
       return true;
     }
 
+    // If nobody can act any more (all remaining players are all-in), skip
+    // further betting streets and go straight to showdown.
+    if (this.shouldGoToShowdown()) {
+      this.stage = 'showdown';
+      this.pendingShowdown = true;
+      this.assertChipInvariant('after advanceStage (all-in runout)');
+      return true;
+    }
+
     // New betting round: first to act is left of dealer
     this.currentPlayerIndex = (this.dealerIndex + 1) % this.players.length;
     this.lastAggressorIndex = -1;
     this.playersActedThisRound = new Set();
-    this._advanceToNextActivePlayer(); // skip folded/all-in
+    const found = this._ensureCurrentPlayerCanAct(); // skip folded/all-in without overshooting
 
-    // If only one player left, go straight to showdown
-    if (this.activePlayers().length <= 1) {
+    // Safety: if somehow no actor was found, force showdown
+    if (!found || this.shouldGoToShowdown()) {
       this.stage = 'showdown';
       this.pendingShowdown = true;
     }

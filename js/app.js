@@ -65,17 +65,15 @@
 
     document.getElementById('btn-history-back')?.addEventListener('click', () => {
       // Return to the most relevant previous screen
-      if (ui.game.stage === 'showdown' || ui.game.pendingShowdown) {
+      if (ui.game.stage === 'showdown' || ui.game.pendingShowdown || ui.game.shouldGoToShowdown()) {
+        ui.renderShowdown();
         ui.showScreen(SCREENS.SHOWDOWN);
       } else if (ui.currentScreen === SCREENS.HISTORY) {
-        // Heuristic: if we came from action we may not know, default to pass or action
-        const alive = ui.game.activePlayers();
-        if (alive.length <= 1) {
+        const cur = ui.game.players[ui.game.currentPlayerIndex];
+        if (!cur || cur.folded || cur.allIn) {
           ui.renderShowdown();
           ui.showScreen(SCREENS.SHOWDOWN);
         } else {
-          // safest is to re-show pass for current player
-          const cur = ui.game.players[ui.game.currentPlayerIndex];
           ui.showPassScreen(cur);
         }
       }

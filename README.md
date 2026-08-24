@@ -29,7 +29,7 @@ Players deal and look at physical cards. This application replaces the chip tray
    ```
    Then visit `http://localhost:8080`.
 
-No build step, no package manager, no backend. Works offline once the page is loaded (fonts are the only external request).
+No build step, no package manager, no backend. Fully offline: Inter is self-hosted in the `fonts/` folder (no Google Fonts or any external requests).
 
 ## Project Structure
 
@@ -37,7 +37,13 @@ No build step, no package manager, no backend. Works offline once the page is lo
 chipless-poker/
 ├── index.html          # Single-page app shell
 ├── css/
-│   └── styles.css      # Dark, touch-friendly theme
+│   └── styles.css      # Dark, touch-friendly theme + local @font-face
+├── fonts/
+│   ├── InterVariable.woff2   # Preferred (all weights)
+│   ├── Inter-Regular.woff2
+│   ├── Inter-SemiBold.woff2
+│   ├── Inter-Bold.woff2
+│   └── Inter-ExtraBold.woff2
 ├── js/
 │   ├── models.js       # Player, SidePot, Game – all chip logic & state
 │   ├── ui.js           # Screen management, pass-device flow, rendering
